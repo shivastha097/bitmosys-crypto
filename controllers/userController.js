@@ -115,6 +115,11 @@ const exchangeCryptoCoin = async (req, res) => {
                 // update coin quantity in User model
                 const myCurrentCoin = user.coinItems.find(c => c.coin.toString() === currentCoinData._id.toString())
                 myCurrentCoin.quantity -= quantity
+
+                if( myCurrentCoin.quantity === 0 ) {
+                    user.coinItems.splice(user.coinItems.findIndex(c => c.coin.toString() === currentCoinId.toString()), 1)
+                    user.numCoinType -= 1
+                }
                 await user.save()
 
                 // update coins quantity in Coin model
