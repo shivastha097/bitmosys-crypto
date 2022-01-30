@@ -30,6 +30,7 @@ const buyCryptoCoin = async (req, res) => {
 
     if ( coin ) {
         // Check if coin is already purchased
+        // res.json(user)
         const purchasedCoin = user.coinItems.find(c => c.coin.toString() === coin._id.toString())
         
         const purchasedQuantity = Number(req.body.quantity)
@@ -98,12 +99,17 @@ const exchangeCryptoCoin = async (req, res) => {
         const currentCoinData = await Coin.findById(currentCoinId)
         const newCoinData = await Coin.findById(newCoinId)
         const user = await User.findById(userId)
-        
+
+        const currentCoinQuantity = user.coinItems.find(c => c.coin.toString() === currentCoinData._id.toString())
+        // res.json(currentCoinQuantity)
         // check the available coin's quantity 
-        if ( quantity <= newCoinData.quantity ) {
+        if ( (quantity <= newCoinData.quantity) && (quantity <= currentCoinQuantity.quantity) ) {
+            
             const existingCoin = user.coinItems.find(c => c.coin.toString() === newCoinData._id.toString())
-            // check if new coin is already exists
+            
+            // check if new coin is already exists - TRUE
             if ( existingCoin ) {
+                // res.json('coin already exists')
                 existingCoin.quantity += quantity
 
                 // update coin quantity in User model
@@ -118,9 +124,42 @@ const exchangeCryptoCoin = async (req, res) => {
                 await newCoinData.save()
                 await currentCoinData.save()
 
-                res.json('Coin successfully exchanged')
+                res.json('Coins successfully exchanged')
             } else {
-                res.json('New coin to exchange')
+                // if the new coin (coin to be exchanged) doesn't exist in user profile
+                const myCurrentCoin = await user.coinItems.find(c => c.coin.toString() === currentCoinData._id.toString())
+                const postCoinQuantity = myCurrentCoin.quantity - quantity
+
+                // res.json('New coin to exchange')
+                const newExchangedCoin = {
+                    name: newCoinData.name,
+                    image: newCoinData.image,
+                    quantity: quantity,
+                    coin: newCoinData._id
+                }
+                
+                // Remove current coin from profile if quantity is 0
+                if ( postCoinQuantity == 0 ) {
+                    const items = user.coinItems.splice(user.coinItems.findIndex(c => c.coin.toString() === currentCoinId.toString()), 1)
+                    user.coinItems.push(newExchangedCoin)
+                    
+                    await user.save()
+                } else {
+                    user.coinItems.push(newExchangedCoin)
+                    user.numCoinType += 1
+
+                    myCurrentCoin.quantity -= quantity
+                    await user.save()
+                    await myCurrentCoin.save()
+                }
+
+                // update coins quantity in Coin Model
+                currentCoinData.quantity += quantity
+                newCoinData.quantity -= quantity
+                await currentCoinData.save()
+                await newCoinData.save()
+
+                res.json('Coins successfully exchanged')
             }
         } else {
             res.json('Maximum quantity entered')
