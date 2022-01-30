@@ -1,5 +1,7 @@
+const { ObjectId } = require("bson")
 const User = require("../models/userModel")
 const Coin = require('./../models/coinModel')
+const mongoose = require('mongoose')
 
 // @desc    Get users
 // @route   GET /user
@@ -18,7 +20,7 @@ const getUserById = async (req, res) => {
 }
 
 // @desc    Buy cryptocoin by user
-// @route   POST /user/:userId/cryptocoins/:cryptoId/buy
+// @route   POST /user/:userId/cryptocoins/:coinId/buy
 const buyCryptoCoin = async (req, res) => {
     const userId = req.params.userId
     const coinId = req.params.coinId
@@ -81,8 +83,56 @@ const buyCryptoCoin = async (req, res) => {
     }
 }
 
+// @desc    Exchange cryptocoin
+// @route   POST /user/:userId/cryptocoins/:coinId/exchange
+const exchangeCryptoCoin = async (req, res) => {
+    
+    const userId = req.params.userId
+    const currentCoinId = req.params.coinId
+    const newCoinId = req.body.newCoinId
+    const quantity = Number(req.body.quantity)
+    
+    // Check if similar type of coins are exchanged
+    if( currentCoinId !== newCoinId ) {
+
+        const currentCoinData = await Coin.findById(currentCoinId)
+        const newCoinData = await Coin.findById(newCoinId)
+        const user = await User.findById(userId)
+        
+        // check the available coin's quantity 
+        if ( quantity <= newCoinData.quantity ) {
+            const existingCoin = user.coinItems.find(c => c.coin.toString() === newCoinData._id.toString())
+            // check if new coin is already exists
+            if ( existingCoin ) {
+                existingCoin.quantity += quantity
+
+                // update coin quantity in User model
+                const myCurrentCoin = user.coinItems.find(c => c.coin.toString() === currentCoinData._id.toString())
+                myCurrentCoin.quantity -= quantity
+                await user.save()
+
+                // update coins quantity in Coin model
+                newCoinData.quantity -= quantity
+                currentCoinData.quantity += quantity
+                
+                await newCoinData.save()
+                await currentCoinData.save()
+
+                res.json('Coin successfully exchanged')
+            } else {
+                res.json('New coin to exchange')
+            }
+        } else {
+            res.json('Maximum quantity entered')
+        }
+    } else {
+        res.json('Sorry, same type of coin cannot be exchanged')
+    }
+}
+
 module.exports = {
     getUsers,
     getUserById,
-    buyCryptoCoin
+    buyCryptoCoin,
+    exchangeCryptoCoin
 }
