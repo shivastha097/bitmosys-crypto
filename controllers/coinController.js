@@ -13,7 +13,11 @@ const getCoins = async (req, res) => {
 const getCoinById = async (req, res) => {
     const coin = await Coin.findById(req.params.id)
 
-    res.json(coin)
+    if ( coin) {
+        res.json(coin)
+    } else {
+        res.status(404).json('Coin not found')
+    }
 }
 
 module.exports = {
